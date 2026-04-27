@@ -58,6 +58,15 @@ const TONES = [
   "íntimo",
 ];
 
+const LIVE_PERFORMERS = [
+  "saxo (yo)",
+  "saxofonista invitado",
+  "percusionista",
+  "vocalista",
+  "guitarrista",
+  "banda Savage Party completa",
+];
+
 const VENUE_SUGGESTIONS = [
   "playa / beach club",
   "palacio de congresos",
@@ -73,6 +82,7 @@ export function EventForm() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
 
   const [form, setForm] = useState<EventInput>({
     eventType: "Boda",
@@ -92,7 +102,7 @@ export function EventForm() {
     dressCode: "",
     occasion: "",
     format: "",
-    liveBand: false,
+    livePerformers: [],
     phases: PHASES.map((p) => ({
       name: p.id,
       enabled: ["cocktail", "warmup", "peak"].includes(p.id),
@@ -131,7 +141,7 @@ export function EventForm() {
     }));
   }
 
-  function toggleInArray<K extends "tone" | "timesOfDay">(
+  function toggleInArray<K extends "tone" | "timesOfDay" | "livePerformers">(
     key: K,
     value: string,
   ) {
@@ -151,21 +161,27 @@ export function EventForm() {
     setError(null);
     setLoading(true);
     try {
+      const fd = new FormData();
+      fd.append("brief", JSON.stringify(form));
+      if (pdfFile) fd.append("pdf", pdfFile);
       const res = await fetch("/api/generate-event", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: fd,
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Error generando playlist");
       const songs: Song[] = data.songs;
+      const inputWithBrief: EventInput = {
+        ...form,
+        briefDocument: data.briefDocument ?? form.briefDocument,
+      };
       const playlist: Playlist = {
         id: newId(),
         name: `${form.eventType}${form.date ? ` ${form.date}` : ""}${form.location ? ` · ${form.location}` : ""}`,
         mode: "event",
         createdAt: new Date().toISOString(),
         folderId: null,
-        input: form,
+        input: inputWithBrief,
         songs,
       };
       savePlaylist(playlist);
@@ -357,17 +373,26 @@ export function EventForm() {
                 placeholder="vecinos cerca, fin a las 02h, sin restricciones..."
               />
             </Field>
-            <Field label="¿Hay banda en vivo?">
-              <label className="flex items-center gap-2 pt-1.5">
-                <input
-                  type="checkbox"
-                  checked={form.liveBand ?? false}
-                  onChange={(e) => setField("liveBand", e.target.checked)}
-                />
-                <span className="text-sm text-[var(--muted)]">
-                  Sí, conviven banda + DJ
-                </span>
-              </label>
+            <Field label="Performance en vivo durante el DJ set">
+              <div className="flex flex-wrap gap-2 pt-1">
+                {LIVE_PERFORMERS.map((p) => {
+                  const on = form.livePerformers.includes(p);
+                  return (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => toggleInArray("livePerformers", p)}
+                      className={`rounded-full border px-3 py-1 text-sm transition-colors ${
+                        on
+                          ? "border-[var(--accent)] bg-[var(--accent)] text-black"
+                          : "border-[var(--border)] text-[var(--muted)] hover:border-[var(--accent)]"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  );
+                })}
+              </div>
             </Field>
           </Grid>
         </div>
@@ -533,6 +558,36 @@ export function EventForm() {
           onChange={(e) => setField("notes", e.target.value)}
           placeholder="Cualquier cosa más que el DJ deba saber"
         />
+      </Section>
+
+      <Section title="Brief PDF (opcional)">
+        <div className="space-y-2 rounded-md border border-dashed border-[var(--border)] bg-[var(--surface-2)] p-4">
+          <input
+            type="file"
+            accept="application/pdf"
+            onChange={(e) => setPdfFile(e.target.files?.[0] ?? null)}
+            className="block w-full text-sm text-[var(--muted)] file:mr-3 file:rounded-md file:border-0 file:bg-[var(--accent)] file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-black hover:file:bg-amber-500"
+          />
+          {pdfFile && (
+            <div className="flex items-center justify-between text-xs text-[var(--muted)]">
+              <span>
+                {pdfFile.name} · {(pdfFile.size / 1024).toFixed(0)} KB
+              </span>
+              <button
+                type="button"
+                onClick={() => setPdfFile(null)}
+                className="text-red-400 hover:text-red-300"
+              >
+                Quitar
+              </button>
+            </div>
+          )}
+          <p className="text-xs text-[var(--muted)]">
+            Si tienes el dossier o brief del cliente en PDF, súbelo. Extraigo
+            el texto y se lo paso a Claude como contexto. Máx 15 MB. PDFs
+            escaneados sin OCR no funcionan.
+          </p>
+        </div>
       </Section>
 
       {error && (

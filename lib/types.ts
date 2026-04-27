@@ -39,7 +39,7 @@ export type EventInput = {
   dressCode?: string;
   occasion?: string;
   format?: string;
-  liveBand?: boolean;
+  livePerformers: string[];
   phases: Array<{
     name: Phase | string;
     enabled: boolean;
@@ -54,6 +54,7 @@ export type EventInput = {
   bouquet?: string;
   surprises?: string;
   notes?: string;
+  briefDocument?: string;
 };
 
 export type PresetInput = {

@@ -80,8 +80,13 @@ export function buildEventUserMessage(input: EventInput): string {
     lines.push(`Restricciones de volumen u horario: ${input.volumeConstraints.trim()}`);
   }
 
-  if (input.liveBand) {
-    lines.push("Hay banda en vivo conviviendo con el DJ. La playlist es complementaria.");
+  if (input.livePerformers?.length) {
+    lines.push(
+      `Acompañamiento en vivo durante el DJ set: ${input.livePerformers.join(", ")}.`,
+    );
+    lines.push(
+      "La playlist debe dejar espacio para que estos músicos improvisen sobre los tracks: prioriza temas con vocal moderado o instrumentales, huecos melódicos, BPM estable, y evita pistas con muchísima información sonora encima.",
+    );
   }
 
   if (input.guestCount) lines.push(`Nº de invitados: ${input.guestCount}`);
@@ -133,6 +138,17 @@ export function buildEventUserMessage(input: EventInput): string {
   if (input.notes?.trim()) {
     lines.push("");
     lines.push(`Notas extra: ${input.notes.trim()}`);
+  }
+
+  if (input.briefDocument?.trim()) {
+    lines.push("");
+    lines.push("BRIEF ADJUNTO (texto extraído del PDF que el cliente entregó):");
+    lines.push("---");
+    lines.push(input.briefDocument.trim());
+    lines.push("---");
+    lines.push(
+      "Si el brief adjunto contradice o complementa los campos del formulario, prioriza el brief adjunto.",
+    );
   }
 
   lines.push("");
